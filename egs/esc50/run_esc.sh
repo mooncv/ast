@@ -55,23 +55,23 @@ if [ -d $base_exp_dir ]; then
 fi
 mkdir -p $base_exp_dir
 
-for((fold=1;fold<=5;fold++));
-do
-  echo 'now process fold'${fold}
+for noise_level in 0.0 0.5; do
+    echo 'now process noise level' ${noise_level}
 
-  exp_dir=${base_exp_dir}/fold${fold}
+    exp_dir=${base_exp_dir}/noise_${noise_level}
 
-  tr_data=./data/datafiles/esc_train_data_${fold}.json
-  te_data=./data/datafiles/esc_eval_data_${fold}.json
+    tr_data=./data/datafiles/esc_train_data_1_noise${noise_level}.json
+    te_data=./data/datafiles/esc_eval_data_1_noise${noise_level}.json
 
-  CUDA_CACHE_DISABLE=1 python -W ignore ../../src/run.py --model ${model} --dataset ${dataset} \
-  --data-train ${tr_data} --data-val ${te_data} --exp-dir $exp_dir \
-  --label-csv ./data/esc_class_labels_indices.csv --n_class 50 \
-  --lr $lr --n-epochs ${epoch} --batch-size $batch_size --save_model False \
-  --freqm $freqm --timem $timem --mixup ${mixup} --bal ${bal} \
-  --tstride $tstride --fstride $fstride --imagenet_pretrain $imagenetpretrain --audioset_pretrain $audiosetpretrain \
-  --metrics ${metrics} --loss ${loss} --warmup ${warmup} --lrscheduler_start ${lrscheduler_start} --lrscheduler_step ${lrscheduler_step} --lrscheduler_decay ${lrscheduler_decay} \
-  --dataset_mean ${dataset_mean} --dataset_std ${dataset_std} --audio_length ${audio_length} --noise ${noise}
+    CUDA_CACHE_DISABLE=1 python -W ignore ../../src/run.py --model ${model} --dataset ${dataset} \
+    --data-train ${tr_data} --data-val ${te_data} --exp-dir $exp_dir \
+    --label-csv ./data/esc_class_labels_indices.csv --n_class 50 \
+    --lr $lr --n-epochs ${epoch} --batch-size $batch_size --save_model False \
+    --freqm $freqm --timem $timem --mixup ${mixup} --bal ${bal} \
+    --tstride $tstride --fstride $fstride --imagenet_pretrain $imagenetpretrain --audioset_pretrain $audiosetpretrain \
+    --metrics ${metrics} --loss ${loss} --warmup ${warmup} --lrscheduler_start ${lrscheduler_start} --lrscheduler_step ${lrscheduler_step} --lrscheduler_decay ${lrscheduler_decay} \
+    --dataset_mean ${dataset_mean} --dataset_std ${dataset_std} --audio_length ${audio_length} --noise ${noise}
 done
 
 python ./get_esc_result.py --exp_path ${base_exp_dir}
+
