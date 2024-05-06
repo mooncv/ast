@@ -74,4 +74,3 @@ for noise_level in 0.0 0.5; do
 done
 
 python ./get_esc_result.py --exp_path ${base_exp_dir}
-
