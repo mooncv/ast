@@ -28,6 +28,7 @@ def train(audio_model, train_loader, test_loader, args):
     data_time = AverageMeter()
     per_sample_data_time = AverageMeter()
     loss_meter = AverageMeter()
+    train_acc_meter = AverageMeter()  # 추가된 훈련 데이터 정확도 측정 meter
     per_sample_dnn_time = AverageMeter()
     progress = []
     # best_cum_mAP is checkpoint ensemble from the first epoch to the best epoch
@@ -127,8 +128,10 @@ def train(audio_model, train_loader, test_loader, args):
                 audio_output = audio_model(audio_input)
                 if isinstance(loss_fn, torch.nn.CrossEntropyLoss):
                     loss = loss_fn(audio_output, torch.argmax(labels.long(), axis=1))
+                    train_acc = (audio_output.argmax(dim=1) == torch.argmax(labels.long(), axis=1)).float().mean()
                 else:
                     loss = loss_fn(audio_output, labels)
+                    train_acc = (audio_output.sigmoid().round() == labels).float().mean(axis=1).mean()
 
             # optimization if amp is not used
             # optimizer.zero_grad()
@@ -143,6 +146,7 @@ def train(audio_model, train_loader, test_loader, args):
 
             # record loss
             loss_meter.update(loss.item(), B)
+            train_acc_meter.update(train_acc.item(), B)  # 업데이트된 훈련 정확도 추가
             batch_time.update(time.time() - end_time)
             per_sample_time.update((time.time() - end_time)/audio_input.shape[0])
             per_sample_dnn_time.update((time.time() - dnn_start_time)/audio_input.shape[0])
@@ -156,9 +160,10 @@ def train(audio_model, train_loader, test_loader, args):
                   'Per Sample Total Time {per_sample_time.avg:.5f}\t'
                   'Per Sample Data Time {per_sample_data_time.avg:.5f}\t'
                   'Per Sample DNN Time {per_sample_dnn_time.avg:.5f}\t'
+                  'Train Acc {train_acc_meter.avg:.4f}\t'                      
                   'Train Loss {loss_meter.avg:.4f}\t'.format(
                    epoch, i, len(train_loader), per_sample_time=per_sample_time, per_sample_data_time=per_sample_data_time,
-                      per_sample_dnn_time=per_sample_dnn_time, loss_meter=loss_meter), flush=True)
+                      per_sample_dnn_time=per_sample_dnn_time, train_acc_meter=train_acc_meter, loss_meter=loss_meter), flush=True)
                 if np.isnan(loss_meter.avg):
                     print("training diverged...")
                     return
@@ -177,7 +182,7 @@ def train(audio_model, train_loader, test_loader, args):
 
         mAP = np.mean([stat['AP'] for stat in stats])
         mAUC = np.mean([stat['auc'] for stat in stats])
-        acc = stats[0]['acc']
+        validacc = stats[0]['acc']
 
         middle_ps = [stat['precisions'][int(len(stat['precisions'])/2)] for stat in stats]
         middle_rs = [stat['recalls'][int(len(stat['recalls'])/2)] for stat in stats]
@@ -187,7 +192,8 @@ def train(audio_model, train_loader, test_loader, args):
         if main_metrics == 'mAP':
             print("mAP: {:.6f}".format(mAP))
         else:
-            print("acc: {:.6f}".format(acc))
+            print("train_acc: {:.6f}".format(train_acc_meter.avg))
+            print("validacc: {:.6f}".format(validacc))
         print("AUC: {:.6f}".format(mAUC))
         print("Avg Precision: {:.6f}".format(average_precision))
         print("Avg Recall: {:.6f}".format(average_recall))
@@ -198,7 +204,7 @@ def train(audio_model, train_loader, test_loader, args):
         if main_metrics == 'mAP':
             result[epoch-1, :] = [mAP, mAUC, average_precision, average_recall, d_prime(mAUC), loss_meter.avg, valid_loss, cum_mAP, cum_mAUC, optimizer.param_groups[0]['lr']]
         else:
-            result[epoch-1, :] = [acc, mAUC, average_precision, average_recall, d_prime(mAUC), loss_meter.avg, valid_loss, cum_acc, cum_mAUC, optimizer.param_groups[0]['lr']]
+            result[epoch-1, :] = [train_acc_meter.avg, validacc, mAUC, average_precision, average_recall, d_prime(mAUC), loss_meter.avg, valid_loss, cum_acc, cum_mAUC, optimizer.param_groups[0]['lr']]
         np.savetxt(exp_dir + '/result.csv', result, delimiter=',')
         print('validation finished')
 
@@ -207,9 +213,9 @@ def train(audio_model, train_loader, test_loader, args):
             if main_metrics == 'mAP':
                 best_epoch = epoch
 
-        if acc > best_acc:
-            best_acc = acc
-            if main_metrics == 'acc':
+        if validacc > best_acc:
+            best_acc = validacc
+            if main_metrics == 'validacc':
                 best_epoch = epoch
 
         if cum_mAP > best_cum_mAP:
@@ -241,6 +247,7 @@ def train(audio_model, train_loader, test_loader, args):
         per_sample_time.reset()
         data_time.reset()
         per_sample_data_time.reset()
+        train_acc_meter.reset()
         loss_meter.reset()
         per_sample_dnn_time.reset()
 
