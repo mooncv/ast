@@ -28,7 +28,7 @@ fi
 freqm=24
 timem=96
 mixup=0
-epoch=1
+epoch=25
 batch_size=16
 fstride=10
 tstride=10
