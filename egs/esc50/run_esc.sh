@@ -28,7 +28,7 @@ fi
 freqm=24
 timem=96
 mixup=0
-epoch=25
+epoch=10
 batch_size=16
 fstride=10
 tstride=10
@@ -55,7 +55,7 @@ if [ -d $base_exp_dir ]; then
 fi
 mkdir -p $base_exp_dir
 
-for noise_level in 0.0 0.5; do
+for noise_level in 0.0 0.1; do
     echo 'now process noise level' ${noise_level}
 
     exp_dir=${base_exp_dir}/noise_${noise_level}
