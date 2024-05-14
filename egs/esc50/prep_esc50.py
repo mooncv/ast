@@ -32,7 +32,7 @@ import argparse
 #
 
 # Function to add Gaussian noise
-def add_gaussian_noise(audio, noise_factor=0.5):
+def add_gaussian_noise(audio, noise_factor=0.1):
     """Adds Gaussian noise to an audio signal."""
     noise = np.random.randn(len(audio))
     augmented_audio = audio + noise_factor * noise
